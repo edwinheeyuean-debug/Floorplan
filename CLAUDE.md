@@ -1,82 +1,42 @@
-# Floorplan Reader & Generator
+# Floor Plan Agent
 
-An agent project for extracting structured data from architectural floor plan images and generating cleaned-up redrawn versions.
+This agent reads architectural floor plan images and optionally generates cleaned-up redrawn versions.
 
-## Overview
+## Sequence
 
-This project does two things:
+1. **Read first.** Always run the extraction step before generation. Never call Nano Banana without a completed JSON extraction from the same floor plan.
+2. **Generate second.** Pass the extraction JSON to Nano Banana. If the tool is not available in the current session, stop after extraction and report `status: mcp_unavailable`.
 
-1. **Read** — Analyze a floor plan image and extract structured JSON (rooms, walls, doors, windows, stairs, adjacency, dimensions, uncertainties).
-2. **Generate** — Use a Nano Banana image-generation MCP tool to produce a clean, redrawn version of the detected layout.
+## JSON Output Rules
 
-## Setup
+- Return **only** valid JSON. No prose, no markdown fences, no explanation before or after.
+- Every response must conform to `schemas/floorplan.schema.json`.
+- All required keys must be present even if their value is an empty array.
+- All coordinates are normalized to the image dimensions (0.0–1.0).
+- Set `approximate_area_m2` to `null` unless a scale bar or explicit label makes calculation possible. Do not estimate.
+- Record `visible_dimensions` exactly as printed. Do not invent or infer measurements.
+- Any element detected with less than high confidence must appear in `uncertainties` with a reason. Never silently drop uncertain elements.
 
-### API Keys
+## Layout Preservation Rules
 
-**Never store API keys in the repository.** Set them as environment variables:
+- Do not add, remove, or reposition any room, wall, door, window, or staircase.
+- The generated image must match the topology of the extracted JSON exactly.
+- Do not add furniture, fixtures, title blocks, stamps, or decoration not present in the source.
+- Do not infer a north arrow unless one is visible in the source image.
 
-```bash
-export GEMINI_API_KEY="your-key-here"
-```
+## API Key Rules
 
-The agent reads this at runtime. If the key is missing, it will refuse to call the API rather than fail silently.
+- Never store API keys, tokens, or secrets in any file in this repository.
+- Read keys from environment variables at runtime only: `GEMINI_API_KEY`, `NANO_BANANA_API_KEY`.
+- If a required key is missing from the environment, abort and report the missing variable. Do not fall back to a hardcoded value.
 
-### MCP Tool: Nano Banana
+## Prompts
 
-The generation step requires a Nano Banana image-generation MCP tool registered in Claude Code's MCP config (`~/.claude/mcp.json` or project `.mcp.json`). When the tool is unavailable, the agent completes only the extraction step and notes the gap.
-
-Example MCP config entry (fill in your server details):
-
-```json
-{
-  "mcpServers": {
-    "nano-banana": {
-      "command": "npx",
-      "args": ["-y", "nano-banana-mcp"],
-      "env": {
-        "NANO_BANANA_API_KEY": "${NANO_BANANA_API_KEY}"
-      }
-    }
-  }
-}
-```
-
-## Directory Layout
-
-```
-prompts/
-  read_floorplan.md           # Prompt for extraction step
-  generate_clean_floorplan.md # Prompt for generation step
-schemas/
-  floorplan.schema.json       # JSON Schema for extracted data
-examples/                     # Sample floor plan images (checked in, no PII)
-outputs/                      # Extraction JSON + generated images (git-ignored)
-```
-
-## Running
-
-### Extract structured data from an image
-
-```bash
-claude -p prompts/read_floorplan.md --image path/to/floorplan.png
-```
-
-Output is written to `outputs/<filename>.json`.
-
-### Generate a cleaned-up floor plan
-
-```bash
-claude -p prompts/generate_clean_floorplan.md --image path/to/floorplan.png
-```
-
-Output image is written to `outputs/<filename>_clean.png`.
-
-## Design Rules
-
-- **Do not invent measurements.** Only include dimensions visibly labeled in the source image.
-- **Always mark uncertainty.** Any detection below high confidence must appear in the `uncertainties` array with a reason.
-- **Preserve layout fidelity.** The generated image must reflect the extracted topology — do not add, remove, or relocate rooms.
+| File | Purpose |
+|---|---|
+| `prompts/read_floorplan.md` | Full extraction instructions |
+| `prompts/generate_clean_floorplan.md` | Generation instructions and Nano Banana call spec |
 
 ## Schema
 
-See `schemas/floorplan.schema.json` for the full extraction contract.
+See `schemas/floorplan.schema.json` for the complete extraction contract.
