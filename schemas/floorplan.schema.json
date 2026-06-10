@@ -1,0 +1,138 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "floorplan.schema.json",
+  "title": "FloorPlan Extraction",
+  "description": "Structured data extracted from an architectural floor plan image.",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "source_image",
+    "rooms",
+    "walls",
+    "doors",
+    "windows",
+    "stairs",
+    "adjacency",
+    "visible_dimensions",
+    "uncertainties"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": { "type": "string", "const": "1.0" },
+    "source_image": { "type": ["string", "null"] },
+    "rooms":              { "type": "array", "items": { "$ref": "#/$defs/Room" } },
+    "walls":              { "type": "array", "items": { "$ref": "#/$defs/Wall" } },
+    "doors":              { "type": "array", "items": { "$ref": "#/$defs/Door" } },
+    "windows":            { "type": "array", "items": { "$ref": "#/$defs/Window" } },
+    "stairs":             { "type": "array", "items": { "$ref": "#/$defs/Stair" } },
+    "adjacency":          { "type": "array", "items": { "$ref": "#/$defs/AdjacencyPair" } },
+    "visible_dimensions": { "type": "array", "items": { "$ref": "#/$defs/Dimension" } },
+    "uncertainties":      { "type": "array", "items": { "$ref": "#/$defs/Uncertainty" } }
+  },
+  "$defs": {
+    "NormalizedPoint": {
+      "type": "object", "required": ["x", "y"], "additionalProperties": false,
+      "properties": {
+        "x": { "type": "number", "minimum": 0.0, "maximum": 1.0 },
+        "y": { "type": "number", "minimum": 0.0, "maximum": 1.0 }
+      }
+    },
+    "NormalizedBBox": {
+      "type": "object", "required": ["x", "y", "width", "height"], "additionalProperties": false,
+      "properties": {
+        "x":      { "type": "number", "minimum": 0.0, "maximum": 1.0 },
+        "y":      { "type": "number", "minimum": 0.0, "maximum": 1.0 },
+        "width":  { "type": "number", "minimum": 0.0, "maximum": 1.0 },
+        "height": { "type": "number", "minimum": 0.0, "maximum": 1.0 }
+      }
+    },
+    "Room": {
+      "type": "object",
+      "required": ["id", "label", "type", "approximate_area_m2", "bbox"],
+      "additionalProperties": false,
+      "properties": {
+        "id":    { "type": "string" },
+        "label": { "type": ["string", "null"] },
+        "type": {
+          "type": "string",
+          "enum": ["bedroom","bathroom","kitchen","living_room","dining_room",
+                   "hallway","stairwell","garage","utility","office","closet",
+                   "balcony","terrace","storage","unknown"]
+        },
+        "approximate_area_m2": { "type": ["number", "null"], "minimum": 0 },
+        "bbox": { "$ref": "#/$defs/NormalizedBBox" }
+      }
+    },
+    "Wall": {
+      "type": "object",
+      "required": ["id", "start", "end", "thickness_px"], "additionalProperties": false,
+      "properties": {
+        "id":           { "type": "string" },
+        "start":        { "$ref": "#/$defs/NormalizedPoint" },
+        "end":          { "$ref": "#/$defs/NormalizedPoint" },
+        "thickness_px": { "type": ["number", "null"], "minimum": 0 }
+      }
+    },
+    "Door": {
+      "type": "object",
+      "required": ["id", "position", "connects", "swing_direction", "door_type"],
+      "additionalProperties": false,
+      "properties": {
+        "id":              { "type": "string" },
+        "position":        { "$ref": "#/$defs/NormalizedPoint" },
+        "connects":        { "type": "array", "items": { "type": "string" }, "minItems": 1, "maxItems": 2 },
+        "swing_direction": { "type": ["string", "null"] },
+        "door_type":       { "type": "string", "enum": ["single","double","sliding","folding","unknown"] }
+      }
+    },
+    "Window": {
+      "type": "object",
+      "required": ["id", "position", "wall_id", "width_normalized"], "additionalProperties": false,
+      "properties": {
+        "id":               { "type": "string" },
+        "position":         { "$ref": "#/$defs/NormalizedPoint" },
+        "wall_id":          { "type": ["string", "null"] },
+        "width_normalized": { "type": ["number", "null"], "minimum": 0, "maximum": 1 }
+      }
+    },
+    "Stair": {
+      "type": "object",
+      "required": ["id", "bbox", "ascent_direction", "step_count"], "additionalProperties": false,
+      "properties": {
+        "id":               { "type": "string" },
+        "bbox":             { "$ref": "#/$defs/NormalizedBBox" },
+        "ascent_direction": { "type": ["string", "null"] },
+        "step_count":       { "type": ["integer", "null"], "minimum": 1 }
+      }
+    },
+    "AdjacencyPair": {
+      "type": "object",
+      "required": ["room_a", "room_b", "connection_type"], "additionalProperties": false,
+      "properties": {
+        "room_a": { "type": "string" },
+        "room_b": { "type": "string" },
+        "connection_type": { "type": "string", "enum": ["shared_wall","door","open_passage"] }
+      }
+    },
+    "Dimension": {
+      "type": "object",
+      "required": ["id", "label", "value", "unit", "applies_to"], "additionalProperties": false,
+      "properties": {
+        "id":         { "type": "string" },
+        "label":      { "type": "string" },
+        "value":      { "type": "number" },
+        "unit":       { "type": "string" },
+        "applies_to": { "type": ["string", "null"] }
+      }
+    },
+    "Uncertainty": {
+      "type": "object",
+      "required": ["element_id", "element_type", "reason"], "additionalProperties": false,
+      "properties": {
+        "element_id":   { "type": "string" },
+        "element_type": { "type": "string", "enum": ["room","wall","door","window","stair","dimension","adjacency"] },
+        "reason":       { "type": "string" }
+      }
+    }
+  }
+}
