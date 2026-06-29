@@ -2,6 +2,7 @@
 .env
 .env.*
 secrets.json
+.claude/env
 
 # Generated outputs
 outputs/
