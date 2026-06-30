@@ -1,0 +1,13 @@
+{
+  "schema_version": "furniture-design-v1",
+  "source_floorplan": {
+    "source_image": "32b022a3-FURNITURE_PLAN.pdf",
+    "scale_note": "Plan scale 1:100. Blk 25J Wan Tho Avenue, Singapore 347554."
+  },
+  "design_concept": {
+    "name": "Still Clay",
+    "style": "Wabi Sabi",
+    "budget_sgd": 40000,
+    "occupants": "2 adults (assumed)"
+  }
+}
