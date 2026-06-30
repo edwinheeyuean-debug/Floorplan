@@ -191,7 +191,7 @@ The JSON must include this structure:
   },
   "image_generation": {
     "layout_plan_prompt": "",
-    "render_3d_prompt": "",
+    "room_renders": {},
     "negative_prompt": ""
   },
   "consistency_checks": {
@@ -336,59 +336,80 @@ The design must remain suitable for an HDB residential unit.
 
 ---
 
+## Wabi Sabi Design Direction
+
+If the user requests `Wabi Sabi`, use this direction:
+
+```text
+Wabi Sabi Singapore HDB interior design with warm earthy palette: oatmeal, warm beige, clay, terracotta accents, off-white ceilings, sage green plants, warm grey secondary walls, raw ash or oak timber. Materials: vinyl plank flooring warm oak tone, raw ash/oak timber veneer carpentry, matte clay-tone laminate kitchen, sintered stone countertop warm sand, natural linen upholstery and curtains, rattan weave dining chairs and side tables, jute rugs, textured plaster paint feature walls, washi paper and rattan pendant lights. Negative space is intentional. No chrome, no gloss, no bright primary colours.
+```
+
+---
+
 ## 2D Furniture Layout Plan Image Rules
 
 The 2D furniture layout plan must show:
 
-- Original room layout
-- Walls
-- Doors
-- Windows
-- Room names
+- Original room layout matching the source floor plan exactly
+- Walls (structural walls with thicker lines)
+- Doors at correct positions
+- Windows at correct positions
+- Room names and labels
 - Furniture positions
-- Furniture labels
-- Furniture dimensions in MM
-- Clear circulation paths where possible
+- Furniture labels with dimensions in MM
+- Clear circulation paths
 - Built-in carpentry locations
 - Loose furniture locations
+- Bomb shelter with thick walls and storage-only label
+- RC Flat Roof and Air-Con Ledge as hatched non-habitable zones
 
 The style should be:
 
 ```text
-Clean architectural top-view furniture layout plan, white background, black and grey linework, readable labels, furniture blocks drawn to scale as much as possible, dimension annotations in millimetres, professional interior design presentation drawing, 1024x1024.
+Clean architectural top-view furniture layout plan, white background, black and grey linework, readable labels, furniture blocks drawn to scale, dimension annotations in millimetres, professional interior design presentation drawing.
 ```
 
-Do not let Nano Banana change the original floor plan geometry.
+Do not let the image generator change the original floor plan geometry or rearrange rooms.
 
-Do not allow decorative rendering style in the 2D plan. It should remain a clear technical layout plan.
+Do not use decorative rendering style. It must remain a clear technical layout plan.
 
 ---
 
 ## 3D Rendered Design Image Rules
 
-The rendered 3D design must show:
+Generate **one eye-level perspective render per habitable room** — do NOT generate a single dollhouse overview.
 
-- Same furniture items from `furniture_schedule`
-- Same built-in carpentry items
-- Same room zoning
-- Same modern luxury style
-- Same colour and material palette
-- Whole-house design atmosphere
-- Realistic HDB apartment proportions
+Rooms to render separately:
+1. Living Room
+2. Dining Area
+3. Kitchen
+4. Main Bedroom
+5. Bedroom 2
+6. Bedroom 3 (if present)
 
-The 3D render should be:
+Each render must show:
+- Same furniture items from `furniture_schedule` for that room
+- Same design style, colour, and material palette
+- Eye-level camera from entrance or corner
+- Realistic HDB proportions (2700mm ceiling, standard room sizes)
+- Warm 2700K lighting appropriate to room type
+- Vinyl plank warm oak flooring throughout
 
+Each render must NOT:
+- Show furniture from other rooms
+- Add architectural features not in the floor plan
+- Show multi-storey spaces or voids
+- Use a dollhouse/cutaway overhead perspective
+
+Save as:
 ```text
-Rendered 3D interior design view of the entire house based on the provided floor plan and furniture layout, modern luxury Singapore HDB interior, warm neutral palette, dark wood accents, fluted panels, marble-look surfaces, warm concealed lighting, elegant built-in carpentry, realistic scale, realistic residential proportions, high quality interior render.
+render_living_room.png
+render_dining.png
+render_kitchen.png
+render_main_bedroom.png
+render_bedroom2.png
+render_bedroom3.png
 ```
-
-The render must not show furniture that does not exist in the furniture schedule.
-
-The render must not change room locations.
-
-The render must not add extra bedrooms, windows, staircases, balconies, or structural features.
-
-If one single image cannot show the full house clearly, choose a 3D cutaway / dollhouse perspective that shows the main rooms and furniture arrangement. Do not redesign the layout to fit the camera.
 
 ---
 
@@ -402,99 +423,48 @@ Expected tool:
 nano_banana_generate_image
 ```
 
-If the MCP tool is not available or not connected, return:
+If the MCP tool is not available or not connected, try calling the Gemini imagen API directly:
+
+```text
+POST https://generativelanguage.googleapis.com/v1beta/models/imagen-4.0-generate-001:predict?key=<GOOGLE_AI_API_KEY>
+{"instances": [{"prompt": "<prompt>"}], "parameters": {"sampleCount": 1, "aspectRatio": "1:1"}}
+```
+
+The API key is stored in `.claude/env` as `NANO_BANANA_API_KEY`.
+
+If neither is available, return:
 
 ```json
 {
   "status": "mcp_unavailable",
-  "message": "Nano Banana MCP tool is not connected. Furniture design JSON was prepared, but images were not generated."
+  "message": "Image generation tool is not connected. Furniture design JSON was prepared, but images were not generated."
 }
 ```
 
-Do not expose API keys.
+Do not expose API keys in responses.
 
 Do not ask the user to paste API keys.
 
 ---
 
-## Required 2D Layout MCP Prompt
-
-When generating the 2D furniture layout, pass the completed `furniture_design_json` as the reference JSON.
-
-The image prompt must include:
-
-```text
-Generate a clean 2D architectural furniture layout plan from the provided floor plan JSON and furniture design JSON.
-
-Preserve the original floor plan geometry, room positions, walls, doors, windows, and labels.
-
-Draw all furniture items from furniture_schedule only. Do not invent additional furniture.
-
-Each furniture item must be placed in the room stated by room_id, at its proposed position, with the stated dimensions in millimetres.
-
-Show furniture labels using item_name and dimensions, for example: "3-Seater Sofa 2100W x 900D".
-
-Use a professional interior design layout plan style, top view, white background, black/grey linework, readable text, clean dimension annotations, 1024x1024.
-```
-
----
-
-## Required 3D Render MCP Prompt
-
-When generating the 3D render, pass the same completed `furniture_design_json` as the reference JSON.
-
-The image prompt must include:
-
-```text
-Generate a rendered 3D interior design view using the same furniture_design_json used for the 2D furniture layout plan.
-
-The 3D render must contain the same furniture items, built-in carpentry, room zoning, and material palette listed in furniture_schedule.
-
-Do not add major furniture that is not listed in furniture_schedule.
-
-Do not move rooms, walls, doors, or windows away from the source floor plan.
-
-Design style: modern luxury Singapore HDB interior, warm neutral palette, dark wood accents, fluted feature panels, marble-look surfaces, slim black or champagne trims, warm concealed lighting, refined built-in storage, realistic HDB proportions.
-
-Use a 3D cutaway / dollhouse perspective if needed to show the whole-house layout clearly.
-```
-
----
-
-## Negative Prompt
-
-Use this negative prompt for both 2D and 3D generations where supported:
-
-```text
-Do not change the original floor plan layout. Do not add extra rooms. Do not remove doors or windows. Do not add stairs. Do not create impossible furniture placement. Do not block entrances. Do not use furniture not listed in the furniture schedule. Do not create palace, mansion, hotel lobby, oversized furniture, unrealistic ceiling height, or non-HDB proportions. Do not omit required furniture labels in the 2D layout.
-```
-
----
-
 ## Consistency Check
 
-After both images are generated, compare:
-
-1. Furniture schedule
-2. 2D furniture layout prompt
-3. 3D render prompt
-4. Generated 2D layout image description
-5. Generated 3D render image description
-
-Check the following:
+After all images are generated, verify:
 
 ```text
+- Does the 2D layout match the original floor plan room positions?
+- Is the bomb shelter shown with thick walls and storage-only label?
+- Is RC Flat Roof shown as hatched non-habitable zone?
 - Does every major 3D furniture item exist in the furniture schedule?
 - Does every scheduled item appear in the 2D layout?
-- Does every scheduled item intended for render appear in the 3D prompt?
-- Are room names and zones consistent?
-- Are furniture dimensions included in the 2D layout?
+- Are room names and zones consistent across all outputs?
 - Are doorways and circulation paths not blocked?
-- Does the 3D render follow the same modern luxury style?
+- Is the design style consistent across all room renders?
 - Does the design appear suitable for the stated budget?
+- Are all 3D renders per-room eye-level (not dollhouse)?
 ```
 
-If inconsistencies are found, do not hide them. Return a consistency report and regenerate only the inconsistent image if possible.
+If inconsistencies are found, do not hide them. Return a consistency report.
 
 ---
 
@@ -505,13 +475,15 @@ Save outputs using this structure:
 ```text
 outputs/<project_name>/
 ├── furniture_design.json
-├── furniture_schedule.md
 ├── furniture_layout_plan.png
-├── rendered_3d_design.png
+├── render_living_room.png
+├── render_dining.png
+├── render_kitchen.png
+├── render_main_bedroom.png
+├── render_bedroom2.png
+├── render_bedroom3.png
 └── consistency_report.md
 ```
-
-If the user did not provide a project name, create a simple timestamped folder name.
 
 ---
 
@@ -530,10 +502,8 @@ After completion, respond in this format:
 
 ### Files
 - Furniture design JSON: `outputs/<project_name>/furniture_design.json`
-- Furniture schedule: `outputs/<project_name>/furniture_schedule.md`
 - 2D furniture layout plan: `outputs/<project_name>/furniture_layout_plan.png`
-- 3D rendered design: `outputs/<project_name>/rendered_3d_design.png`
-- Consistency report: `outputs/<project_name>/consistency_report.md`
+- Room renders: `outputs/<project_name>/render_*.png`
 
 ### Consistency Result
 <pass/fail summary with any issues>
@@ -548,14 +518,60 @@ After completion, respond in this format:
 
 - Do not invent original floor plan measurements.
 - Proposed furniture dimensions are allowed, but must be clearly treated as proposed design dimensions.
-- Do not call Nano Banana before the furniture design JSON is complete.
-- Do not make the 2D layout and 3D render from separate prompts with different furniture.
+- Do not call image generation before the furniture design JSON is complete.
+- Do not make the 2D layout and 3D renders from separate prompts with different furniture.
 - Do not use different furniture names between outputs.
-- Do not add unlisted furniture in the 3D render.
+- Do not add unlisted furniture in the 3D renders.
 - Do not over-design beyond the user's budget.
 - Do not expose or request API keys.
 - Do not silently ignore uncertain floor plan elements.
 - Do not alter structural walls unless explicitly requested by the user.
-- Do not block windows, doors, bathroom entrances, kitchen entrances, or household shelter access.
-- Always produce a furniture schedule with dimensions in MM.
+- Do not block windows, doors, bathroom entrances, kitchen entrances, or bomb shelter access.
 - Always produce a consistency report.
+- Always generate per-room 3D renders, never a single dollhouse overview.
+
+---
+
+## HDB-Specific Rules (Singapore)
+
+These rules apply to all HDB units and override generic defaults.
+
+### Bomb Shelter (Apt. Shelter)
+
+- Identified by **thick black walls** on the floor plan — these are reinforced concrete walls that **cannot be hacked**.
+- HDB regulations: bomb shelter may only be redesigned as **storage space**. It cannot be used as a bedroom, study room, or gym.
+- In the 2D layout plan: draw with very thick border, label **"STORE / BOMB SHELTER — STORAGE ONLY"**, place only wire shelving inside.
+- In 3D renders: do not render inside the shelter. In the kitchen render, show the **bomb shelter door** (heavy steel door, painted off-white, lever handle) on the kitchen wall. Do not show the shelter interior.
+
+### RC Flat Roof Above (7th Storey Only)
+
+- Labelled on plan as "R.C. Flat Roof Above (At 7th Storey Only)".
+- This is a **concrete slab** above the external zone — not open sky, not habitable space.
+- In 2D layout: hatch or shade this zone, label "RC FLAT ROOF (NOT HABITABLE)", place no furniture.
+- In 3D renders: this zone is never shown.
+
+### Air-Con Ledge
+
+- Small external ledge for air-conditioning compressors.
+- Not habitable. Hatch in 2D plan, label "A/C LEDGE", place no furniture.
+
+### Structural Walls
+
+- All structural walls (outer walls and load-bearing walls) cannot be removed.
+- Do not propose wall removal unless the user explicitly requests it and confirms with HDB approval.
+
+### Layout Accuracy
+
+- The 2D furniture layout plan must **faithfully reproduce the original architectural floor plan**.
+- Room positions, shapes, and relative sizes must match the source drawing.
+- Do not rearrange rooms, flip the layout, or invent rooms not in the floor plan.
+- Verify room positions against the original PDF/image before generating.
+
+### Ceiling Height
+
+- Standard HDB ceiling height: **2700mm**. Do not show double-height spaces, voids, or mezzanines unless confirmed present.
+
+### Dimensions
+
+- All dimensions in **MM** unless stated otherwise.
+- Do not invent measurements not visible in the original drawing.
